@@ -45,8 +45,20 @@ export function renderBriefing(input: BriefingInput): string {
     }
   }
 
+  // Answer block — the writable half of the event. The human types after each
+  // arrow, then "read my huddle answers" feeds this text back to `ingest_answers`.
+  if (actionable.length > 0) {
+    lines.push("");
+    lines.push(ANSWER_HEADER);
+    lines.push("Reply after each → then tell your agent “read my huddle answers”.");
+    for (const t of actionable) lines.push(`${t.id} → `);
+  }
+
   return lines.join("\n");
 }
+
+/** Marks the start of the writable answer block in a briefing/event description. */
+export const ANSWER_HEADER = "— ✍️ Your answers —";
 
 function reserveLabel(minutes: number, actionableCount: number): string {
   if (actionableCount === 0) return "FYI digest, no time reserved";

@@ -31,15 +31,27 @@ Prerequisites: both `huddle-mcp` and a Google Calendar MCP are connected.
 
 Then tell the user what you scheduled and when — one line per meeting.
 
-## Running a briefing (recording decisions)
+Each briefing description ends with a writable **answer block** (`tkt_xxx → `),
+so the user can reply inside the event itself — that's the read-back path below.
 
-When the user is reviewing (at the booked time, or on demand):
+## Closing the loop — two ways, both unblock the waiting agents
 
-1. `get_briefing` for the meeting to re-read the agenda + full tickets.
-2. Walk the actionable items with the user. For each, call `resolve` with the
-   `ticket_id` (shown in the briefing in parentheses) and the user's decision.
-3. `resolve` flips each ticket to `answered`; the worker agents unblock on their
-   next `check_response`. FYIs need no action.
+**A. The user answers inside the calendar event** (e.g. they say "read my huddle
+answers", or you're checking after a booked briefing's time):
+
+1. `list_agenda` → find `booked` meetings and their `calendarEventId`.
+2. For each, fetch the event via the calendar MCP (`get_event`) and take its
+   `description` — the user will have filled in the `tkt_xxx → …` lines.
+3. Pass that description to `ingest_answers`. It parses every filled answer and
+   resolves the matching tickets in one call, returning `resolved` + `skipped`.
+4. Report what was resolved; the worker agents unblock on their next
+   `check_response`. FYIs need no answer.
+
+**B. The user tells you decisions in chat** — call `resolve` per `ticket_id`
+(shown in the briefing in parentheses) with their decision. Same effect.
+
+Prefer A when a briefing was booked (let the user answer in the event); use B for
+quick verbal decisions.
 
 ## Quick status
 

@@ -1,6 +1,6 @@
 {
   "name": "huddle-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that lets your parallel coding agents schedule briefings on your real calendar instead of interrupting you — a queue that batches their plans and questions by urgency.",
   "license": "MIT",
   "author": "marcoloco23",

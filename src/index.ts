@@ -2,6 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { parseAnswers } from "./answers.js";
 import { renderBriefing } from "./briefing.js";
 import { groupTickets } from "./scheduler.js";
 import {
@@ -9,11 +10,12 @@ import {
   makeId,
   StoreError,
   type Meeting,
+  type StoreData,
   type Ticket,
 } from "./store.js";
 
 const SERVER_NAME = "huddle-mcp";
-const SERVER_VERSION = "0.1.0";
+const SERVER_VERSION = "0.2.0";
 
 const INSTRUCTIONS = [
   "A coordination broker for parallel coding agents. Worker agents queue requests",
@@ -31,8 +33,12 @@ const INSTRUCTIONS = [
   "   (freebusy / suggest_time) in working hours — soonest for 'asap', the next review",
   "   block for 'next-block' — and create an event whose description IS briefingMarkdown.",
   "3. Call `confirm_meeting` with the meetingId, the created event id, and start/end.",
-  "After the user reviews, call `resolve` per ticket to record each decision; that is",
-  "what unblocks the waiting workers.",
+  "",
+  "CLOSING THE LOOP (two ways, both unblock the waiting workers):",
+  "- `resolve` one ticket at a time with the user's decision, OR",
+  "- the user answers inside the calendar event itself (each briefing description ends",
+  "  with an answer block: `tkt_xxx → their answer`). Fetch that event's description via",
+  "  the calendar MCP and pass it to `ingest_answers` to resolve every answered ticket at once.",
 ].join("\n");
 
 const ticketType = z.enum(["question", "plan", "decision", "fyi"]);
@@ -106,6 +112,24 @@ function disposition(t: Ticket): string {
     return "Logged as an FYI — appears in your next briefing, reserves no calendar time.";
   }
   return "Queued for your next briefing block.";
+}
+
+/** Mark a ticket answered and complete its meeting once nothing is left open. */
+function answerTicket(data: StoreData, t: Ticket, decision: string): void {
+  t.status = "answered";
+  t.response = decision;
+  t.respondedAt = nowIso();
+  if (!t.meetingId) return;
+  const m = data.meetings.find((x) => x.id === t.meetingId);
+  if (!m) return;
+  const all = m.ticketIds
+    .map((id) => data.tickets.find((x) => x.id === id))
+    .filter((x): x is Ticket => Boolean(x));
+  // FYIs never get answered — a meeting is done once every actionable item is.
+  const done = all.every(
+    (x) => x.type === "fyi" || x.status === "answered" || x.status === "cancelled"
+  );
+  if (done) m.status = "done";
 }
 
 function buildServer(store: AgendaStore): McpServer {
@@ -352,21 +376,50 @@ function buildServer(store: AgendaStore): McpServer {
         store.mutate((data) => {
           const t = data.tickets.find((x) => x.id === ticket_id);
           if (!t) throw new StoreError(`no ticket ${ticket_id}`);
-          t.status = "answered";
-          t.response = decision;
-          t.respondedAt = nowIso();
-          if (t.meetingId) {
-            const m = data.meetings.find((x) => x.id === t.meetingId);
-            if (m) {
-              const all = m.ticketIds
-                .map((id) => data.tickets.find((x) => x.id === id))
-                .filter((x): x is Ticket => Boolean(x));
-              if (all.every((x) => x.status === "answered" || x.status === "cancelled")) {
-                m.status = "done";
-              }
-            }
-          }
+          answerTicket(data, t, decision);
           return ticketSummary(t);
+        })
+      )
+  );
+
+  server.registerTool(
+    "ingest_answers",
+    {
+      title: "Resolve tickets from event answers",
+      description:
+        "Parse the user's answers out of a calendar event description (or any text) and resolve " +
+        "every matching ticket at once — the read-back half of the loop. Fetch the booked event's " +
+        "description via the calendar MCP and pass it here; answer lines look like `tkt_xxx → decision`.",
+      inputSchema: {
+        text: z
+          .string()
+          .min(1)
+          .describe("The event description (or notes) the user typed their answers into."),
+      },
+    },
+    async ({ text }) =>
+      safe(() =>
+        store.mutate((data) => {
+          const resolved: { ticketId: string; agent: string; answer: string }[] = [];
+          const skipped: { ticketId: string; reason: string }[] = [];
+          for (const { ticketId, answer } of parseAnswers(text)) {
+            const t = data.tickets.find((x) => x.id === ticketId);
+            if (!t) {
+              skipped.push({ ticketId, reason: "unknown ticket" });
+              continue;
+            }
+            if (t.type === "fyi") {
+              skipped.push({ ticketId, reason: "fyi — no answer needed" });
+              continue;
+            }
+            if (t.status === "answered") {
+              skipped.push({ ticketId, reason: "already answered" });
+              continue;
+            }
+            answerTicket(data, t, answer);
+            resolved.push({ ticketId, agent: t.agent, answer });
+          }
+          return { resolved, skipped };
         })
       )
   );

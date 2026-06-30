@@ -36,10 +36,13 @@ So huddle-mcp is **auth-free and provider-agnostic** — it never touches your c
 | `plan_meetings`   | orchestrator  | Batch the queue into proposed meetings + rendered briefings.           |
 | `confirm_meeting` | orchestrator  | Record a booked calendar event; marks its tickets scheduled.           |
 | `get_briefing`    | orchestrator  | The rendered agenda + full tickets for a meeting.                      |
-| `resolve`         | orchestrator  | Record the user's decision for a ticket → unblocks the worker.         |
+| `resolve`         | orchestrator  | Record the user's decision for one ticket → unblocks the worker.       |
+| `ingest_answers`  | orchestrator  | Parse the user's answers out of the **event description** and resolve every answered ticket at once. |
 | `list_agenda`     | orchestrator  | What's queued / scheduled / answered.                                  |
 
 ## How it fits together
+
+The calendar event is **two-way**: huddle writes the briefing into it, and the user answers right there.
 
 ```
 worker agents ──request_meeting──▶ [ huddle-mcp queue ]   (local JSON, file-locked)
@@ -47,16 +50,27 @@ worker agents ──request_meeting──▶ [ huddle-mcp queue ]   (local JSON,
                                          ▼
                           plan_meetings → proposed meetings (window + duration + briefing)
                                          │
-your orchestrator ──▶ your Calendar MCP: freebusy → create_event(description = briefing)
+your orchestrator ──▶ your Calendar MCP: freebusy → create_event(description = briefing + answer block)
                                          │
                           confirm_meeting(meetingId, eventId, start, end)
                                          ▼
-        ── you review at the booked time ──▶ resolve(ticketId, decision)
-                                         ▲
+        ┌── you answer in the event:  "tkt_3f9a → use server sessions"
+        │
+        └─▶ orchestrator reads the event back ──▶ ingest_answers(description)
+                                         ▲              (or resolve(ticketId, decision) in chat)
 worker agents ──check_response(ticketId)─┘  poll, unblock, proceed
 ```
 
-The bundled **`huddle` skill** (in `skills/huddle/`) drives the orchestrator side for you — say *"book my agent briefings"* and it runs `plan_meetings`, finds free slots via your calendar MCP, creates the events, and confirms them.
+The briefing that lands in the event ends with a writable answer block:
+
+```
+— ✍️ Your answers —
+Reply after each → then tell your agent "read my huddle answers".
+tkt_3f9a2c1d → use server sessions
+tkt_8b7e0a44 → ship dark mode as the default
+```
+
+When you say *"read my huddle answers"*, the bundled **`huddle` skill** (in `skills/huddle/`) fetches the event via your calendar MCP, passes its description to `ingest_answers`, and every answered ticket resolves — the agents unblock. The same skill drives the booking side: *"book my agent briefings"* runs `plan_meetings`, finds free slots, and creates the events. huddle itself never touches the calendar — the skill bridges it.
 
 ## Requirements
 
@@ -70,13 +84,13 @@ The bundled **`huddle` skill** (in `skills/huddle/`) drives the orchestrator sid
   "mcpServers": {
     "huddle": {
       "command": "npx",
-      "args": ["-y", "github:marcoloco23/huddle-mcp"]
+      "args": ["-y", "huddle-mcp"]
     }
   }
 }
 ```
 
-That's it — no env vars. Connect a Google Calendar MCP alongside it for booking, and (optionally) copy `skills/huddle/` into `~/.claude/skills/` so *"book my agent briefings"* just works.
+That's it — no env vars. (Prefer the bleeding edge? Use `"github:marcoloco23/huddle-mcp"` instead of `"huddle-mcp"`.) Connect a Google Calendar MCP alongside it for booking, and (optionally) copy `skills/huddle/` into `~/.claude/skills/` so *"book my agent briefings"* and *"read my huddle answers"* just work.
 
 ### From source
 
