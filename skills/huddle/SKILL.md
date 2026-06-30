@@ -25,7 +25,8 @@ Prerequisites: both `huddle-mcp` and a Google Calendar MCP are connected.
    Create the event with:
    - title = the meeting `title`,
    - description = the meeting `briefingMarkdown` **verbatim** (this is the agenda),
-   - duration = `durationMinutes`.
+   - duration = `durationMinutes`,
+   - **visibility = `private`** — briefings carry plans and code into the calendar.
 3. `confirm_meeting` with the `meeting_id`, the calendar event id the calendar MCP
    returned, and the `start`/`end` you booked.
 
@@ -63,3 +64,7 @@ answered — use it for "what do the agents need from me?"
 - Never invent calendar availability — always read freebusy via the calendar MCP.
 - One blocker = one ASAP meeting; routine items bundle into one briefing block.
 - If `plan_meetings` returns nothing, the queue is empty — say so.
+- Changed your mind on a decision? `reopen` the ticket, then re-answer.
+- Dropping a meeting? `discard_meeting` re-queues its open tickets and returns the
+  `calendarEventId` for you to delete via the calendar MCP. Stale *proposals*
+  (never booked, >24h) auto-expire on the next `plan_meetings`.

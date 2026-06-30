@@ -15,7 +15,7 @@ import {
 } from "./store.js";
 
 const SERVER_NAME = "huddle-mcp";
-const SERVER_VERSION = "0.2.0";
+const SERVER_VERSION = "0.2.1";
 
 const INSTRUCTIONS = [
   "A coordination broker for parallel coding agents. Worker agents queue requests",
@@ -43,6 +43,9 @@ const INSTRUCTIONS = [
 
 const ticketType = z.enum(["question", "plan", "decision", "fyi"]);
 const urgency = z.enum(["blocker", "normal", "low"]);
+
+/** Proposed (never-booked) meetings expire after this; their tickets re-queue. */
+const PROPOSAL_TTL_MS = 24 * 60 * 60 * 1000;
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -272,6 +275,19 @@ function buildServer(store: AgendaStore): McpServer {
     async ({ max_block_minutes }) =>
       safe(() =>
         store.mutate((data) => {
+          // Expire stale proposals: free their still-open tickets, drop the meeting.
+          const cutoff = Date.now() - PROPOSAL_TTL_MS;
+          let expired = 0;
+          data.meetings = data.meetings.filter((m) => {
+            if (m.status !== "proposed" || Date.parse(m.createdAt) >= cutoff) return true;
+            for (const id of m.ticketIds) {
+              const t = data.tickets.find((x) => x.id === id);
+              if (t && t.status === "queued") t.meetingId = null;
+            }
+            expired += 1;
+            return false;
+          });
+
           const fresh = data.tickets.filter(
             (t) => t.status === "queued" && t.meetingId === null
           );
@@ -300,6 +316,7 @@ function buildServer(store: AgendaStore): McpServer {
           const unbooked = data.meetings.filter((m) => m.status === "proposed");
           return {
             created: groups.length,
+            expiredStaleProposals: expired,
             unbookedMeetings: unbooked.map(meetingSummary),
           };
         })
@@ -420,6 +437,77 @@ function buildServer(store: AgendaStore): McpServer {
             resolved.push({ ticketId, agent: t.agent, answer });
           }
           return { resolved, skipped };
+        })
+      )
+  );
+
+  server.registerTool(
+    "reopen",
+    {
+      title: "Re-decide an answered ticket",
+      description:
+        "Undo a decision: clears the recorded answer and re-opens the ticket so it can be answered " +
+        "again. Use when you change your mind. A ticket still on a booked meeting returns to that " +
+        "meeting as `scheduled`; otherwise it goes back to `queued`.",
+      inputSchema: {
+        ticket_id: z.string().min(1),
+      },
+    },
+    async ({ ticket_id }) =>
+      safe(() =>
+        store.mutate((data) => {
+          const t = data.tickets.find((x) => x.id === ticket_id);
+          if (!t) throw new StoreError(`no ticket ${ticket_id}`);
+          if (t.status !== "answered" && t.status !== "cancelled") {
+            throw new StoreError(`ticket ${ticket_id} is ${t.status}, nothing to reopen`);
+          }
+          t.response = null;
+          t.respondedAt = null;
+          const m = t.meetingId ? data.meetings.find((x) => x.id === t.meetingId) : undefined;
+          if (m && m.status !== "proposed") {
+            t.status = "scheduled";
+            if (m.status === "done") m.status = "booked";
+          } else {
+            t.status = "queued";
+            t.meetingId = null;
+          }
+          return ticketSummary(t);
+        })
+      )
+  );
+
+  server.registerTool(
+    "discard_meeting",
+    {
+      title: "Discard a meeting",
+      description:
+        "Drop a meeting and return its still-open tickets to the queue (they'll re-batch on the next " +
+        "`plan_meetings`). If it was already booked, the returned `calendarEventId` is the event you " +
+        "should delete via the calendar MCP — this broker can't.",
+      inputSchema: {
+        meeting_id: z.string().min(1),
+      },
+    },
+    async ({ meeting_id }) =>
+      safe(() =>
+        store.mutate((data) => {
+          const m = data.meetings.find((x) => x.id === meeting_id);
+          if (!m) throw new StoreError(`no meeting ${meeting_id}`);
+          const freed: string[] = [];
+          for (const id of m.ticketIds) {
+            const t = data.tickets.find((x) => x.id === id);
+            if (t && (t.status === "queued" || t.status === "scheduled")) {
+              t.status = "queued";
+              t.meetingId = null;
+              freed.push(t.id);
+            }
+          }
+          data.meetings = data.meetings.filter((x) => x.id !== meeting_id);
+          return {
+            discarded: meeting_id,
+            calendarEventId: m.calendarEventId,
+            requeuedTickets: freed,
+          };
         })
       )
   );

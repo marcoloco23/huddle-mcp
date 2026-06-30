@@ -38,6 +38,8 @@ So huddle-mcp is **auth-free and provider-agnostic** — it never touches your c
 | `get_briefing`    | orchestrator  | The rendered agenda + full tickets for a meeting.                      |
 | `resolve`         | orchestrator  | Record the user's decision for one ticket → unblocks the worker.       |
 | `ingest_answers`  | orchestrator  | Parse the user's answers out of the **event description** and resolve every answered ticket at once. |
+| `reopen`          | orchestrator  | Undo a decision and re-open the ticket (you changed your mind).        |
+| `discard_meeting` | orchestrator  | Drop a meeting, re-queue its open tickets (stale proposals auto-expire after 24h). |
 | `list_agenda`     | orchestrator  | What's queued / scheduled / answered.                                  |
 
 ## How it fits together
@@ -121,6 +123,18 @@ The queue is a single JSON file shared by every agent process, at
 `~/.config/huddle-mcp/queue.json` (honors `XDG_CONFIG_HOME`; override with
 `HUDDLE_HOME`). Concurrent writes from parallel agents are guarded by an atomic
 cross-process lock.
+
+## Developing & releasing
+
+```bash
+npm install        # builds via the prepare hook
+npm test           # node:test — pure units + a stdio server integration suite
+```
+
+CI runs the suite on every push/PR. Releases are automated: bump the version in
+`package.json`, then cut a **GitHub Release** — the publish workflow builds, tests,
+and pushes to npm. It needs an npm **automation** token (which bypasses 2FA) saved
+once as the `NPM_TOKEN` repo secret (Settings → Secrets and variables → Actions).
 
 ## Roadmap
 
