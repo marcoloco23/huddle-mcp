@@ -1,0 +1,57 @@
+{
+  "name": "agenda-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets your parallel coding agents schedule briefings on your real calendar instead of interrupting you — a queue that batches their plans and questions by urgency.",
+  "license": "MIT",
+  "author": "marcoloco23",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marcoloco23/agenda-mcp.git"
+  },
+  "homepage": "https://github.com/marcoloco23/agenda-mcp#readme",
+  "bugs": "https://github.com/marcoloco23/agenda-mcp/issues",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "agents",
+    "calendar",
+    "scheduling",
+    "coordination",
+    "cli"
+  ],
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "agenda-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "prepare": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.0",
+    "tsx": "4.22.2",
+    "typescript": "6.0.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
