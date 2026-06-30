@@ -122,6 +122,12 @@ The queue is a single JSON file shared by every agent process, at
 `HUDDLE_HOME`). Concurrent writes from parallel agents are guarded by an atomic
 cross-process lock.
 
+## Roadmap
+
+Where this is headed — autonomy (agents book themselves), closing the last mile
+(answered → agent actually resumes), notifications, smarter briefings, Outlook, and
+more — is in [ROADMAP.md](ROADMAP.md), ranked by how much it protects your attention.
+
 ## License
 
 MIT
