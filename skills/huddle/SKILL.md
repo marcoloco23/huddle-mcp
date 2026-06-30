@@ -1,17 +1,17 @@
 ---
-name: agenda
-description: Book and run agent briefings. Use when the user wants to schedule the queued agent requests onto their calendar ("book my agent briefings", "what do the agents need from me", "run my agenda"), or to record decisions after reviewing one. Drives the agenda-mcp queue together with the user's connected Google Calendar MCP.
+name: huddle
+description: Book and run agent briefings. Use when the user wants to schedule the queued agent requests onto their calendar ("book my agent briefings", "what do the agents need from me", "run my huddle"), or to record decisions after reviewing one. Drives the huddle-mcp queue together with the user's connected Google Calendar MCP.
 ---
 
-# Agenda — book and run agent briefings
+# Huddle — book and run agent briefings
 
-`agenda-mcp` is a coordination broker: parallel coding agents queue their plans
+`huddle-mcp` is a coordination broker: parallel coding agents queue their plans
 and questions into it instead of interrupting the user. This skill is the
 **orchestrator side** — it turns that queue into real calendar events and records
 the user's decisions back. The broker never touches the calendar itself; you bridge
 it to whatever **Google Calendar MCP** the user has connected.
 
-Prerequisites: both `agenda-mcp` and a Google Calendar MCP are connected.
+Prerequisites: both `huddle-mcp` and a Google Calendar MCP are connected.
 
 ## Booking the queue
 

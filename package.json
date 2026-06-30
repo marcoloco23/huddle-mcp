@@ -1,15 +1,15 @@
 {
-  "name": "agenda-mcp",
+  "name": "huddle-mcp",
   "version": "0.1.0",
   "description": "MCP server that lets your parallel coding agents schedule briefings on your real calendar instead of interrupting you — a queue that batches their plans and questions by urgency.",
   "license": "MIT",
   "author": "marcoloco23",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marcoloco23/agenda-mcp.git"
+    "url": "git+https://github.com/marcoloco23/huddle-mcp.git"
   },
-  "homepage": "https://github.com/marcoloco23/agenda-mcp#readme",
-  "bugs": "https://github.com/marcoloco23/agenda-mcp/issues",
+  "homepage": "https://github.com/marcoloco23/huddle-mcp#readme",
+  "bugs": "https://github.com/marcoloco23/huddle-mcp/issues",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -24,7 +24,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "agenda-mcp": "dist/index.js"
+    "huddle-mcp": "dist/index.js"
   },
   "files": [
     "dist",

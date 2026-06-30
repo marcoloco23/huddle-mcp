@@ -59,7 +59,7 @@ export function makeId(prefix: "tkt" | "mtg"): string {
 
 // ---------- locking ----------
 //
-// Multiple agents each spawn their own agenda-mcp process but share one queue
+// Multiple agents each spawn their own huddle-mcp process but share one queue
 // file. Cross-process safety comes from an atomic mkdir lock: mkdir of a
 // directory either succeeds (we hold the lock) or fails EEXIST (someone else
 // does). Stale locks (process crashed mid-write) are reclaimed by mtime age.
@@ -109,7 +109,7 @@ export class AgendaStore {
         }
         if (Date.now() > deadline) {
           throw new StoreError(
-            "timed out acquiring the agenda store lock; another agent may be stuck"
+            "timed out acquiring the huddle store lock; another agent may be stuck"
           );
         }
         await sleep(15 + Math.floor(Math.random() * 25));
@@ -156,8 +156,8 @@ export class AgendaStore {
 }
 
 function defaultHome(): string {
-  if (process.env.AGENDA_HOME) return process.env.AGENDA_HOME;
+  if (process.env.HUDDLE_HOME) return process.env.HUDDLE_HOME;
   const xdg = process.env.XDG_CONFIG_HOME;
-  if (xdg) return join(xdg, "agenda-mcp");
-  return join(homedir(), ".config", "agenda-mcp");
+  if (xdg) return join(xdg, "huddle-mcp");
+  return join(homedir(), ".config", "huddle-mcp");
 }

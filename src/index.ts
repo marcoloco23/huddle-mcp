@@ -12,7 +12,7 @@ import {
   type Ticket,
 } from "./store.js";
 
-const SERVER_NAME = "agenda-mcp";
+const SERVER_NAME = "huddle-mcp";
 const SERVER_VERSION = "0.1.0";
 
 const INSTRUCTIONS = [

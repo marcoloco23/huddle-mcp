@@ -1,8 +1,8 @@
-# agenda-mcp
+# huddle-mcp
 
 > An MCP server that lets your parallel coding agents **schedule briefings** on your real calendar instead of interrupting you. They queue their plans and questions; the queue batches them by urgency into time-blocks booked when you're free.
 
-When you run a fleet of agents, the bottleneck is you. Three plans and two questions land at once, on their schedule, and the context-switching wrecks your decisions. `agenda-mcp` is the fix real employees already use: don't barge in — book a meeting.
+When you run a fleet of agents, the bottleneck is you. Three plans and two questions land at once, on their schedule, and the context-switching wrecks your decisions. `huddle-mcp` is the fix real employees already use: don't barge in — book a meeting.
 
 ```
 auth-agent  → request_meeting("JWT vs sessions", type=plan, urgency=blocker)
@@ -24,7 +24,7 @@ Wrapping a calendar is a solved problem (Google ships an official Calendar MCP; 
 - an **urgency-aware batching** policy (blockers get booked ASAP; routine items bundle into the next briefing; FYIs ride along and reserve no time),
 - a **briefing renderer** that aggregates everything into one agenda you skim.
 
-So agenda-mcp is **auth-free and provider-agnostic** — it never touches your calendar. It emits the agenda + a desired time window, and the actual freebusy lookup + event creation is delegated to whatever calendar MCP you already have connected (Google, Outlook, …). **Install = one line, zero new credentials.**
+So huddle-mcp is **auth-free and provider-agnostic** — it never touches your calendar. It emits the agenda + a desired time window, and the actual freebusy lookup + event creation is delegated to whatever calendar MCP you already have connected (Google, Outlook, …). **Install = one line, zero new credentials.**
 
 ## Tools
 
@@ -42,7 +42,7 @@ So agenda-mcp is **auth-free and provider-agnostic** — it never touches your c
 ## How it fits together
 
 ```
-worker agents ──request_meeting──▶ [ agenda-mcp queue ]   (local JSON, file-locked)
+worker agents ──request_meeting──▶ [ huddle-mcp queue ]   (local JSON, file-locked)
    (auth, ui, db…)                       │ batch by urgency + render briefing
                                          ▼
                           plan_meetings → proposed meetings (window + duration + briefing)
@@ -56,33 +56,33 @@ your orchestrator ──▶ your Calendar MCP: freebusy → create_event(descrip
 worker agents ──check_response(ticketId)─┘  poll, unblock, proceed
 ```
 
-The bundled **`agenda` skill** (in `skills/agenda/`) drives the orchestrator side for you — say *"book my agent briefings"* and it runs `plan_meetings`, finds free slots via your calendar MCP, creates the events, and confirms them.
+The bundled **`huddle` skill** (in `skills/huddle/`) drives the orchestrator side for you — say *"book my agent briefings"* and it runs `plan_meetings`, finds free slots via your calendar MCP, creates the events, and confirms them.
 
 ## Requirements
 
 - Node.js ≥ 20
-- A calendar MCP connected in the same client (e.g. Google Calendar) for the actual booking. agenda-mcp itself needs no account and no auth.
+- A calendar MCP connected in the same client (e.g. Google Calendar) for the actual booking. huddle-mcp itself needs no account and no auth.
 
 ## Install — Claude Code
 
 ```json
 {
   "mcpServers": {
-    "agenda": {
+    "huddle": {
       "command": "npx",
-      "args": ["-y", "github:marcoloco23/agenda-mcp"]
+      "args": ["-y", "github:marcoloco23/huddle-mcp"]
     }
   }
 }
 ```
 
-That's it — no env vars. Connect a Google Calendar MCP alongside it for booking, and (optionally) copy `skills/agenda/` into `~/.claude/skills/` so *"book my agent briefings"* just works.
+That's it — no env vars. Connect a Google Calendar MCP alongside it for booking, and (optionally) copy `skills/huddle/` into `~/.claude/skills/` so *"book my agent briefings"* just works.
 
 ### From source
 
 ```bash
-git clone https://github.com/marcoloco23/agenda-mcp.git
-cd agenda-mcp
+git clone https://github.com/marcoloco23/huddle-mcp.git
+cd huddle-mcp
 pnpm install   # builds via the prepare hook
 node dist/index.js
 ```
@@ -104,8 +104,8 @@ check_response({ ticket_id })  → { answered, response }   # proceed once answe
 ## Storage
 
 The queue is a single JSON file shared by every agent process, at
-`~/.config/agenda-mcp/queue.json` (honors `XDG_CONFIG_HOME`; override with
-`AGENDA_HOME`). Concurrent writes from parallel agents are guarded by an atomic
+`~/.config/huddle-mcp/queue.json` (honors `XDG_CONFIG_HOME`; override with
+`HUDDLE_HOME`). Concurrent writes from parallel agents are guarded by an atomic
 cross-process lock.
 
 ## License
